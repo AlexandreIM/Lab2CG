@@ -30,15 +30,23 @@
 > - Novamente, lembre-se que você *não pode utilizar ferramentas
 >   de IA para escrever este relatório*
 
-Desenhe todos os coelhos usando funções de perímetro de formas geométricas (retângulo verde, losango dourado, círculo azul);
-Mova os coelhos no sentido horário ao longo dos seus respectivos perímetros;
-Adicione um movimento de salto aos coelhos, de forma que alcançem o pico na metade da aresta e seu perímetro (quadrante para o círculo);
-Atualize a orientação dos coelhos para que apontem na direção do seu movimento;
-Atualize o caminho dos coelhos para terem pontas arredondadas, fazendo com que os coelhos alterem sua direção gradualmente;  
-Adicione movimento e inclinação aos coelhos nos pulos, inclinando pra frente na subida e inclinando pra trás na descida;
-Adicione chapéis aos coelhos (discos marrons posicionados no topo de suas cabeças);
-Atualize a velocidade dos coelhos de forma que cada coelho finalize uma rotação ao longo do seu caminho ao mesmo tempo que todos os demais.
-[Cada linha equivale a um prompt, detalhados aqui em ordem](PROMPTS.md)
+<mark>Desenhe todos os coelhos usando funções de perímetro de formas geométricas (retângulo verde, losango dourado, círculo azul);
+
+<mark>Mova os coelhos no sentido horário ao longo dos seus respectivos perímetros;
+
+<mark>Adicione um movimento de salto aos coelhos, de forma que alcançem o pico na metade da aresta e seu perímetro (quadrante para o círculo);
+
+<mark>Atualize a orientação dos coelhos para que apontem na direção do seu movimento;
+
+<mark>Atualize o caminho dos coelhos para terem pontas arredondadas, fazendo com que os coelhos alterem sua direção gradualmente;  
+
+<mark>Adicione movimento e inclinação aos coelhos nos pulos, inclinando pra frente na subida e inclinando pra trás na descida;
+
+<mark>Adicione chapéis aos coelhos (discos marrons posicionados no topo de suas cabeças);
+
+<mark>Atualize a velocidade dos coelhos de forma que cada coelho finalize uma rotação ao longo do seu caminho ao mesmo tempo que todos os demais.
+
+<mark>[Cada linha equivale a um prompt, detalhados aqui em ordem](PROMPTS.md)
 
 ## Principais dificuldades encontradas durante o desenvolvimento (formato livre)
 
