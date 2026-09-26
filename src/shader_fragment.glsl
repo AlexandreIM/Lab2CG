@@ -82,6 +82,21 @@ void setSurfaceParams()
         clearcoat       = 0.15;
         clearcoatGloss  = 0.65;
     }
+    else if ( surface_type == 7 )
+    {
+        // Matte brown hat surface
+        baseColor       = vec3(0.28, 0.11, 0.035);
+        metallic        = 0.0;
+        subsurface      = 0.0;
+        specular        = 0.25;
+        roughness       = 0.9;
+        specularTint    = 0.0;
+        anisotropic     = 0.0;
+        sheen           = 0.0;
+        sheenTint       = 0.0;
+        clearcoat       = 0.0;
+        clearcoatGloss  = 1.0;
+    }
     else
     {
         // Rough blue plastic surface

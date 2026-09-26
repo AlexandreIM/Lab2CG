@@ -192,7 +192,7 @@ bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mous
 // renderização.
 float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.3f;   // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+float g_CameraDistance = 10.0f; // Distância da câmera para a origem
 
 // Variáveis que controlam rotação do antebraço
 float g_ForearmAngleZ = 0.0f;
@@ -245,7 +245,7 @@ int main(int argc, char* argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 600, "INF01047 - Seu Cartao - Seu Nome", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "INF01047 - 587903 - Alexandre Ikeda Mucenic", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -366,7 +366,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -30.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -405,31 +405,207 @@ int main(int argc, char* argv[])
         #define BLUE_PLASTIC_SURFACE 3
         #define RED_VELVET_SURFACE   4
         #define JADE_SURFACE         6
+        #define BROWN_SURFACE        7
 
-        // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-2.0f,0.0f,0.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPHERE);
-        glUniform1i(g_surface_type_uniform, RED_VELVET_SURFACE);
-        DrawVirtualObject("the_sphere");
+        const float elapsedSeconds = static_cast<float>(glfwGetTime());
+        const float bunnyLapDuration = 12.0f;
+        const float bunnyHopHeight = 0.6f;
 
-        // Desenhamos três coelhos com as cores verde, dourada e azul.
-        const int bunny_surfaces[3] = {
-            JADE_SURFACE,
-            GOLD_SURFACE,
-            BLUE_PLASTIC_SURFACE
-        };
-        for (int i = 0; i < 3; ++i)
+        // // Desenhamos o modelo da esfera no centro das formações.
+        // model = Matrix_Translate(0.0f,0.0f,0.0f);
+        // glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        // glUniform1i(g_object_id_uniform, SPHERE);
+        // glUniform1i(g_surface_type_uniform, RED_VELVET_SURFACE);
+        // DrawVirtualObject("the_sphere");
+
+        auto drawBunny = [&](float x, float y, float z, float heading, float pitch, int surface)
         {
-            model = Matrix_Translate(2.0f * i,0.0f,0.0f);
+            glm::mat4 bunnyTransform = Matrix_Translate(x,y,z) * Matrix_Rotate_Y(heading) *
+                Matrix_Rotate_Z(pitch) * Matrix_Scale(0.45f,0.45f,0.45f);
+            model = bunnyTransform;
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, BUNNY);
-            glUniform1i(g_surface_type_uniform, bunny_surfaces[i]);
+            glUniform1i(g_surface_type_uniform, surface);
             DrawVirtualObject("the_bunny");
+
+            model = bunnyTransform * Matrix_Translate(-0.4f,0.58f,-0.12f) *
+                    Matrix_Scale(0.48f,0.14f,0.52f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SPHERE);
+            glUniform1i(g_surface_type_uniform, BROWN_SURFACE);
+            DrawVirtualObject("the_sphere");
+        };
+
+        // Oito coelhos azuis igualmente espaçados em um círculo.
+        const float pi = 3.14159265358979323846f;
+        const float blueRadius = 1.4f;
+        for (int i = 0; i < 8; ++i)
+        {
+            float angle = 2.0f * pi * i / 8.0f +
+                          2.0f * pi * elapsedSeconds / bunnyLapDuration;
+            float hopProgress = std::fmod(angle, pi / 2.0f) / (pi / 2.0f);
+            if (hopProgress < 0.0f)
+                hopProgress += 1.0f;
+            float hopHeight = bunnyHopHeight * std::sin(pi * hopProgress);
+            float pitch = +0.5f * std::sin(2.0f * pi * hopProgress);
+            float heading = std::atan2(std::cos(angle), std::sin(angle));
+            drawBunny(blueRadius * std::cos(angle), hopHeight,
+                      blueRadius * std::sin(angle), heading, pitch, BLUE_PLASTIC_SURFACE);
         }
 
+        auto drawPolygonPerimeter = [&](const float* vertexX, const float* vertexZ,
+                                        int vertexCount, int bunnyCount, int surface)
+        {
+            struct Point2D
+            {
+                float x;
+                float z;
+            };
+            struct PathSegment
+            {
+                Point2D start;
+                Point2D end;
+                Point2D center;
+                float radius;
+                float startAngle;
+                float sweep;
+                float length;
+                bool isArc;
+            };
+
+            std::vector<Point2D> entries(vertexCount);
+            std::vector<Point2D> exits(vertexCount);
+            std::vector<Point2D> centers(vertexCount);
+            std::vector<float> radii(vertexCount);
+            std::vector<float> startAngles(vertexCount);
+            std::vector<float> sweeps(vertexCount);
+            std::vector<PathSegment> path;
+            const float cornerRadius = 0.35f;
+
+            for (int edge = 0; edge < vertexCount; ++edge)
+            {
+                int previous = (edge + vertexCount - 1) % vertexCount;
+                int next = (edge + 1) % vertexCount;
+                float incomingX = vertexX[edge] - vertexX[previous];
+                float incomingZ = vertexZ[edge] - vertexZ[previous];
+                float outgoingX = vertexX[next] - vertexX[edge];
+                float outgoingZ = vertexZ[next] - vertexZ[edge];
+                float incomingLength = std::sqrt(incomingX * incomingX + incomingZ * incomingZ);
+                float outgoingLength = std::sqrt(outgoingX * outgoingX + outgoingZ * outgoingZ);
+                incomingX /= incomingLength;
+                incomingZ /= incomingLength;
+                outgoingX /= outgoingLength;
+                outgoingZ /= outgoingLength;
+
+                float turn = std::atan2(incomingX * outgoingZ - incomingZ * outgoingX,
+                                        incomingX * outgoingX + incomingZ * outgoingZ);
+                float tangentDistance = cornerRadius * std::tan(std::abs(turn) * 0.5f);
+                tangentDistance = std::min(tangentDistance,
+                                           0.4f * std::min(incomingLength, outgoingLength));
+                float radius = tangentDistance / std::tan(std::abs(turn) * 0.5f);
+
+                entries[edge] = { vertexX[edge] - incomingX * tangentDistance,
+                                  vertexZ[edge] - incomingZ * tangentDistance };
+                exits[edge] = { vertexX[edge] + outgoingX * tangentDistance,
+                                vertexZ[edge] + outgoingZ * tangentDistance };
+                float turnDirection = turn > 0.0f ? 1.0f : -1.0f;
+                centers[edge] = { entries[edge].x - incomingZ * radius * turnDirection,
+                                  entries[edge].z + incomingX * radius * turnDirection };
+                radii[edge] = radius;
+                startAngles[edge] = std::atan2(entries[edge].z - centers[edge].z,
+                                               entries[edge].x - centers[edge].x);
+                sweeps[edge] = turn;
+            }
+
+            float perimeter = 0.0f;
+            for (int edge = 0; edge < vertexCount; ++edge)
+            {
+                int next = (edge + 1) % vertexCount;
+                float lineX = entries[next].x - exits[edge].x;
+                float lineZ = entries[next].z - exits[edge].z;
+                float lineLength = std::sqrt(lineX * lineX + lineZ * lineZ);
+                path.push_back({ exits[edge], entries[next], {}, 0.0f, 0.0f, 0.0f,
+                                 lineLength, false });
+                perimeter += lineLength;
+
+                float arcLength = radii[next] * std::abs(sweeps[next]);
+                Point2D arcEnd = exits[next];
+                path.push_back({ entries[next], arcEnd, centers[next], radii[next],
+                                 startAngles[next], sweeps[next], arcLength, true });
+                perimeter += arcLength;
+            }
+
+            float pathSpeed = perimeter / bunnyLapDuration;
+            for (int i = 0; i < bunnyCount; ++i)
+            {
+                float distance = std::fmod(perimeter * i / bunnyCount + elapsedSeconds * pathSpeed,
+                                           perimeter);
+                if (distance < 0.0f)
+                    distance += perimeter;
+
+                float hopProgress = 0.0f;
+                int segmentIndex = 0;
+                for (int edge = 0; edge < vertexCount; ++edge)
+                {
+                    float hopLength = path[2 * edge].length + path[2 * edge + 1].length;
+                    if (distance <= hopLength || edge == vertexCount - 1)
+                    {
+                        hopProgress = distance / hopLength;
+                        if (distance > path[2 * edge].length)
+                        {
+                            distance -= path[2 * edge].length;
+                            segmentIndex = 2 * edge + 1;
+                        }
+                        else
+                        {
+                            segmentIndex = 2 * edge;
+                        }
+                        break;
+                    }
+                    distance -= hopLength;
+                }
+
+                const PathSegment& segment = path[segmentIndex];
+                float fraction = segment.length > 0.0f ? distance / segment.length : 0.0f;
+                Point2D position;
+                float directionX;
+                float directionZ;
+                if (segment.isArc)
+                {
+                    float angle = segment.startAngle + segment.sweep * fraction;
+                    position = { segment.center.x + segment.radius * std::cos(angle),
+                                 segment.center.z + segment.radius * std::sin(angle) };
+                    float turnDirection = segment.sweep > 0.0f ? 1.0f : -1.0f;
+                    directionX = -std::sin(angle) * turnDirection;
+                    directionZ = std::cos(angle) * turnDirection;
+                }
+                else
+                {
+                    position = { segment.start.x + fraction * (segment.end.x - segment.start.x),
+                                 segment.start.z + fraction * (segment.end.z - segment.start.z) };
+                    directionX = segment.end.x - segment.start.x;
+                    directionZ = segment.end.z - segment.start.z;
+                }
+
+                float hopHeight = bunnyHopHeight * std::sin(pi * hopProgress);
+                float pitch = +0.5f * std::sin(2.0f * pi * hopProgress);
+                float heading = std::atan2(directionZ, -directionX);
+                drawBunny(position.x, hopHeight, position.z, heading, pitch, surface);
+            }
+        };
+
+        // Quatorze coelhos dourados ao longo do perímetro de um losango.
+        const float diamondX[] = { -3.0f, 0.0f, 3.0f, 0.0f };
+        const float diamondZ[] = { 0.0f, -2.4f, 0.0f, 2.4f };
+        drawPolygonPerimeter(diamondX, diamondZ, 4, 14, GOLD_SURFACE);
+
+        // Vinte e quatro coelhos verdes ao longo do perímetro de um retângulo.
+        const float rectangleX[] = { -4.5f, 4.5f, 4.5f, -4.5f };
+        const float rectangleZ[] = { -3.5f, -3.5f, 3.5f, 3.5f };
+        drawPolygonPerimeter(rectangleX, rectangleZ, 4, 24, JADE_SURFACE);
+
         // Desenhamos o plano do chão
-        model = Matrix_Translate(0.0f,-1.0f,0.0f) * Matrix_Scale(4.0f,1.0f,4.0f);
+        model = Matrix_Translate(0.0f,-1.0f,0.0f) * Matrix_Scale(6.0f,1.0f,6.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
